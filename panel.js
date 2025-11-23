@@ -32,6 +32,40 @@ const copyResBtn = document.getElementById('copy-res-btn');
 const screenshotBtn = document.getElementById('screenshot-btn');
 const contextMenu = document.getElementById('context-menu');
 
+// Diff Rendering Functions (Global scope for use in sendRequest)
+function renderDiff(baseline, current) {
+    if (typeof Diff === 'undefined') {
+        return highlightHTTP(current);
+    }
+
+    const diff = Diff.diffLines(baseline, current);
+    let html = '<pre style="margin: 0; padding: 10px; font-family: monospace; font-size: 12px; line-height: 1.5;">';
+
+    diff.forEach(part => {
+        const lines = part.value.split('\n');
+        lines.forEach((line, idx) => {
+            if (idx === lines.length - 1 && line === '') return; // Skip trailing empty line
+
+            if (part.added) {
+                html += `<div class="diff-add">+ ${escapeHtml(line)}</div>`;
+            } else if (part.removed) {
+                html += `<div class="diff-remove">- ${escapeHtml(line)}</div>`;
+            } else {
+                html += `<div>  ${escapeHtml(line)}</div>`;
+            }
+        });
+    });
+
+    html += '</pre>';
+    return html;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     // Wait for html2canvas to be available
@@ -694,6 +728,9 @@ function selectRequest(index) {
         diffToggle.style.display = 'none';
     }
 
+    // Reset baseline for regular requests
+    window.regularRequestBaseline = null;
+
     // Parse URL
     const urlObj = new URL(selectedRequest.request.url);
     const path = urlObj.pathname + urlObj.search;
@@ -741,6 +778,9 @@ function selectRequest(index) {
     }
 
     rawRequestInput.innerHTML = highlightHTTP(rawText);
+
+    // Capture original request for diff (not used anymore, but kept for compatibility)
+    window.originalRequest = rawText;
 
     // Initialize History
     requestHistory = [];
@@ -1445,11 +1485,7 @@ async function sendRequest() {
     resStatus.className = 'status-badge';
     resTime.textContent = '';
 
-    // Hide diff toggle (only for bulk replay)
-    const diffToggle = document.querySelector('.diff-toggle');
-    if (diffToggle) {
-        diffToggle.style.display = 'none';
-    }
+    // Don't hide diff toggle or reset baseline - we want to compare manual edits
 
     try {
         const rawContent = rawRequestInput.innerText.trim();
@@ -1621,8 +1657,33 @@ async function sendRequest() {
 
         console.log('Setting response display text, length:', rawResponse.length);
 
-        // Apply syntax highlighting to response
-        rawResponseDisplay.innerHTML = highlightHTTP(rawResponse);
+        // Capture baseline for diff if this is the first response
+        const diffToggle = document.querySelector('.diff-toggle');
+        const showDiffCheckbox = document.getElementById('show-diff');
+
+        // Always store the current response
+        window.currentResponse = rawResponse;
+
+        if (!window.regularRequestBaseline) {
+            // First response - capture as baseline
+            window.regularRequestBaseline = rawResponse;
+            diffToggle.style.display = 'none'; // Hide for first response
+        } else {
+            // Subsequent response - show diff toggle
+            diffToggle.style.display = 'flex';
+
+            // Check if diff view is enabled
+            if (showDiffCheckbox && showDiffCheckbox.checked) {
+                rawResponseDisplay.innerHTML = renderDiff(window.regularRequestBaseline, rawResponse);
+            } else {
+                rawResponseDisplay.innerHTML = highlightHTTP(rawResponse);
+            }
+        }
+
+        // If diff is not enabled or this is first response, use normal highlighting
+        if (!showDiffCheckbox || !showDiffCheckbox.checked || !window.regularRequestBaseline || window.regularRequestBaseline === rawResponse) {
+            rawResponseDisplay.innerHTML = highlightHTTP(rawResponse);
+        }
 
         // Force visibility
         rawResponseDisplay.style.display = 'block';
@@ -2853,46 +2914,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const showDiffCheckbox = document.getElementById('show-diff');
     if (showDiffCheckbox) {
         showDiffCheckbox.addEventListener('change', () => {
-            // Re-render the currently selected result
+            // Re-render the currently selected bulk replay result
             const selectedRow = bulkResultsTable.querySelector('tr.selected');
             if (selectedRow) {
                 selectedRow.click();
+                return;
+            }
+
+            // Re-render regular response if we have a baseline and current response
+            if (window.regularRequestBaseline && window.currentResponse) {
+                if (showDiffCheckbox.checked) {
+                    rawResponseDisplay.innerHTML = renderDiff(window.regularRequestBaseline, window.currentResponse);
+                } else {
+                    rawResponseDisplay.innerHTML = highlightHTTP(window.currentResponse);
+                }
             }
         });
-    }
-
-    // Render Diff Function
-    function renderDiff(baseline, current) {
-        if (typeof Diff === 'undefined') {
-            return highlightHTTP(current);
-        }
-
-        const diff = Diff.diffLines(baseline, current);
-        let html = '<pre style="margin: 0; padding: 10px; font-family: monospace; font-size: 12px; line-height: 1.5;">';
-
-        diff.forEach(part => {
-            const lines = part.value.split('\n');
-            lines.forEach((line, idx) => {
-                if (idx === lines.length - 1 && line === '') return; // Skip trailing empty line
-
-                if (part.added) {
-                    html += `<div class="diff-add">+ ${escapeHtml(line)}</div>`;
-                } else if (part.removed) {
-                    html += `<div class="diff-remove">- ${escapeHtml(line)}</div>`;
-                } else {
-                    html += `<div>  ${escapeHtml(line)}</div>`;
-                }
-            });
-        });
-
-        html += '</pre>';
-        return html;
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
 
 });
