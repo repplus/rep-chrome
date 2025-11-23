@@ -1342,3 +1342,144 @@ pre {
     background: rgba(242, 139, 130, 0.1);
     border-radius: 4px;
 }
+
+/* Light Theme Overrides */
+.light-theme {
+    --bg-color: #ffffff;
+    --sidebar-bg: #f8f9fa;
+    --border-color: #dadce0;
+    --text-color: #202124;
+    --accent-color: #1a73e8;
+    --success-color: #188038;
+    --error-color: #d93025;
+    --input-bg: #ffffff;
+    --hover-bg: #f1f3f4;
+}
+
+.light-theme .request-item.selected {
+    background-color: #e8f0fe;
+    border-left-color: var(--accent-color);
+}
+
+.light-theme .req-url {
+    color: #5f6368;
+}
+
+.light-theme .request-item.starred .req-url {
+    color: #202124;
+}
+
+.light-theme .req-time {
+    background: #f1f3f4;
+    color: #5f6368;
+}
+
+.light-theme .icon-btn {
+    color: #5f6368;
+}
+
+.light-theme .icon-btn:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.05);
+    color: #202124;
+}
+
+.light-theme .regex-toggle-inline {
+    color: #5f6368;
+}
+
+.light-theme .regex-toggle-inline:hover {
+    background: rgba(26, 115, 232, 0.1);
+}
+
+.light-theme .regex-toggle-inline.active {
+    background: rgba(26, 115, 232, 0.15);
+    color: var(--accent-color);
+}
+
+.light-theme .status-badge.status-2xx {
+    background: #e6f4ea;
+    color: #137333;
+    border-color: #ceead6;
+}
+
+.light-theme .status-badge.status-4xx,
+.light-theme .status-badge.status-5xx {
+    background: #fce8e6;
+    color: #c5221f;
+    border-color: #fad2cf;
+}
+
+.light-theme .time-badge {
+    background: #e8f0fe;
+    color: #1967d2;
+    border-color: #d2e3fc;
+}
+
+.light-theme .size-badge {
+    background: #f3e8fd;
+    color: #8430ce;
+    border-color: #e9d2fd;
+}
+
+.light-theme #raw-request-input,
+.light-theme #raw-response-display,
+.light-theme textarea,
+.light-theme pre {
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+/* Light Theme Syntax Highlighting Adjustments */
+.light-theme .http-method {
+    color: #882255;
+}
+
+.light-theme .http-path {
+    color: #0044dd;
+}
+
+.light-theme .http-version {
+    color: #666;
+}
+
+.light-theme .http-header-name {
+    color: #0055aa;
+}
+
+.light-theme .http-colon {
+    color: #666;
+}
+
+.light-theme .http-header-value {
+    color: #222;
+}
+
+.light-theme .json-key {
+    color: #0055aa;
+}
+
+.light-theme .json-string {
+    color: #0044dd;
+}
+
+.light-theme .json-number {
+    color: #aa5500;
+}
+
+.light-theme .json-boolean {
+    color: #882255;
+}
+
+.light-theme .json-null {
+    color: #666;
+}
+
+.light-theme .diff-add {
+    background-color: #e6ffec;
+    color: #24292e;
+}
+
+.light-theme .diff-remove {
+    background-color: #ffebe9;
+    color: #24292e;
+}
