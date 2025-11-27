@@ -1143,8 +1143,10 @@ export function toggleOOSVisibility() {
     state.hideOOS = !state.hideOOS;
 
     if (elements.oosToggle) {
-        elements.oosToggle.classList.toggle('active', state.hideOOS);
-        elements.oosToggle.title = state.hideOOS ? 'Show all requests (including OOS)' : 'Hide framework noise (OOS)';
+        // Button is active when we are SHOWING OOS (hideOOS is false)
+        const showOOS = !state.hideOOS;
+        elements.oosToggle.classList.toggle('active', showOOS);
+        elements.oosToggle.title = showOOS ? 'Hide framework noise (OOS)' : 'Show framework noise (OOS)';
     }
 
     filterRequests();

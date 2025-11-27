@@ -23,7 +23,7 @@ export const state = {
     sortColumn: 'num',
     sortOrder: 'asc',
     // OOS (Out-of-Scope) filtering - when true, OOS items are HIDDEN
-    hideOOS: false,
+    hideOOS: true,
     // Group Starring
     starredPages: new Set(),
     starredDomains: new Set()
