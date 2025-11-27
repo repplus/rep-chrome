@@ -96,8 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.querySelectorAll('.filter-btn:not(#oos-toggle)').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             state.currentFilter = btn.dataset.filter;
-            // If selecting a non-OOS filter, ensure OOS button is not active
-            if (elements.oosToggle) elements.oosToggle.classList.remove('active');
+            // OOS toggle state persists
             filterRequests();
         });
     });
