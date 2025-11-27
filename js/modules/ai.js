@@ -150,6 +150,13 @@ export function setupAIFeatures(elements) {
 
     if (ctxExplainAi) {
         ctxExplainAi.addEventListener('click', () => {
+            // Hide context menu if open
+            const contextMenu = document.getElementById('context-menu');
+            if (contextMenu) {
+                contextMenu.classList.remove('show');
+                contextMenu.style.visibility = 'hidden';
+            }
+
             const selection = window.getSelection().toString();
             if (!selection.trim()) {
                 alert('Please select some text to explain.');

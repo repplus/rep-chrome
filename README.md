@@ -39,7 +39,16 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
   - **Visual Indicators**: Requests from other tabs are marked with a globe icon 🌍 for easy distinction.
   - **Smart Filtering**: Automatically deduplicates requests to keep your workspace clean.
   - **Privacy First (Optional Permissions)**: Broad permissions (`webRequest`, `<all_urls>`) are **NOT** granted by default. They are requested at **runtime** only when you explicitly click the globe icon to enable this feature. This ensures rep+ remains lightweight and respects your privacy until you need the extra power.
-- **Filters & Regex**: Powerful search across URL, headers, and body. Toggle **Regex Mode** for advanced pattern matching (e.g., finding specific tokens or IDs).
+- **Hierarchical Request Grouping**: Intelligent organization of captured requests for better visibility.
+  - **Page-Based Grouping**: Requests are grouped by the page that initiated them (📄 icon).
+  - **Third-Party Detection**: Automatically identifies and nests third-party domains (CDNs, APIs, analytics) under the parent page (🌐 icon).
+  - **Smart Ordering**: First-party requests appear at the top, followed by third-party domain groups.
+  - **Collapsible Tree**: All groups start collapsed by default to keep the view clean. Use the toggle button to expand/collapse all at once.
+  - **Context-Aware**: Understand which resources belong to which page, making it easier to analyze complex web applications.
+  - **Group Starring**: Star an entire Page Group (📄) or Domain Group (🌐) to track it.
+    - **Focused Tracking**: Starring a Page Group only stars first-party requests (same domain), ignoring third-party noise.
+    - **Auto-Star**: New requests belonging to a starred group are automatically starred as they arrive.
+- **Filters & Regex**: Powerful search across URL, domain, headers, and body. Toggle **Regex Mode** for advanced pattern matching (e.g., finding specific tokens or IDs).
 - **Converters**: Right-click context menu to instantly encode/decode data:
   - Base64
   - URL Encode/Decode
@@ -48,6 +57,8 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
 - **Screenshots**: Built-in screenshot tool to capture the request/response pair for bug reports.
 - **History & Navigation**: Undo/redo support for edits and history navigation for selected requests.
 - **Starring**: Pin important requests to keep them at the top of your list.
+  - **Individual Requests**: Star specific requests manually.
+  - **Group Starring**: Star entire groups to automatically track all current and future requests from that page or domain.
 - **Clear Workspace**: Instantly clear all captured requests with a single click to start a fresh session.
 - **Export & Import**: Export requests as JSON to share findings with teammates or import them later. Perfect for rep+ ↔ rep+ workflows.
 - **Bulk Replay**: Burp Suite Intruder-style attacks with four attack modes:
@@ -73,6 +84,17 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
   - **Context Menu**: Highlight any text (header, parameter, error), right-click, and select **"Explain with AI"** for a targeted explanation.
   - **Streaming Responses**: Explanations appear in real-time.
   - **Configuration**: Configure your Anthropic API Key and Model (Claude 3.5 Sonnet, Opus, Haiku) in the Settings 🤖 menu.
+
+## ⚠️ Limitations
+
+rep+ runs inside Chrome DevTools, so:
+
+- No raw HTTP/1 or malformed requests (fetch() limitation)
+- Some headers can’t be overridden (browser sandbox)
+- No raw TCP sockets (no smuggling/pipelining tests)
+- DevTools panel constraints limit certain UI setups
+
+rep+ is best for quick testing, replaying, and experimenting — not full low-level HTTP work.
 
 ## Installation
 
@@ -147,6 +169,10 @@ If **rep+ saved you time** during testing, development, or bug bounty work, plea
    &nbsp;&nbsp;
    <a href="https://github.com/MrTurvey">
     <img src="https://avatars.githubusercontent.com/u/5578593?s=60" width="60" style="border-radius:50%;" alt="Sponsor"/>
+  </a>
+   &nbsp;&nbsp;
+   <a href="https://github.com/greenat92">
+    <img src="https://avatars.githubusercontent.com/u/8342706?s=60" width="60" style="border-radius:50%;" alt="Sponsor"/>
   </a>
 </p>
 

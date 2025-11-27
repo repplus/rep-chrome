@@ -4,11 +4,11 @@ import {
     initUI, elements, renderRequestItem, filterRequests, updateHistoryButtons,
     clearAllRequestsUI, setupResizeHandle, setupSidebarResize, setupContextMenu,
     setupUndoRedo, captureScreenshot, exportRequests, importRequests,
-    initSortableHeaders, initOOSToggle
+    initSortableHeaders, initOOSToggle, toggleAllGroups
 } from './modules/ui.js';
 import { setupNetworkListener } from './modules/network.js';
 import { setupBulkReplay } from './modules/bulk-replay.js';
-import { copyToClipboard, renderDiff, highlightHTTP } from './modules/utils.js';
+import { copyToClipboard, renderDiff, highlightHTTP, getHostname } from './modules/utils.js';
 
 // Feature Modules
 import { initTheme } from './modules/theme.js';
@@ -40,6 +40,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Setup Network Listener (Current Tab)
     setupNetworkListener((request) => {
+        // Auto-star if group is starred
+        const pageHostname = getHostname(request.pageUrl || request.request.url);
+        const requestHostname = getHostname(request.request.url);
+
+        if (state.starredPages.has(pageHostname)) {
+            // Only auto-star if it's a first-party request
+            if (pageHostname === requestHostname) {
+                request.starred = true;
+            }
+        }
+
+        if (state.starredDomains.has(requestHostname)) {
+            request.starred = true;
+        }
+
         const index = addRequest(request);
         renderRequestItem(request, index);
     });
@@ -108,6 +123,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 clearAllRequestsUI();
             }
         });
+    }
+
+    // Toggle Groups
+    if (elements.toggleGroupsBtn) {
+        elements.toggleGroupsBtn.addEventListener('click', toggleAllGroups);
     }
 
     // Export/Import

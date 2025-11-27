@@ -64,7 +64,8 @@ function handleBeforeRequest(details) {
         type: details.type,
         timeStamp: Date.now(),
         requestBody: parseRequestBody(details.requestBody),
-        tabId: details.tabId
+        tabId: details.tabId,
+        initiator: details.initiator
     });
 }
 

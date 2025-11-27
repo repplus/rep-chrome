@@ -363,3 +363,12 @@ function showCopySuccess(btn) {
         btn.innerHTML = originalHtml;
     }, 1500);
 }
+
+export function getHostname(url) {
+    try {
+        const urlObj = new URL(url);
+        return urlObj.hostname;
+    } catch (e) {
+        return 'unknown';
+    }
+}

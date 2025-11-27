@@ -38,6 +38,70 @@ export const SECRET_REGEXES = {
     'json_web_token': '\\bey[A-Za-z0-9_-]{10,}\\.ey[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\b'
 };
 
+// Common JavaScript method patterns to exclude
+const JS_METHOD_PATTERNS = [
+    /^[a-z]+\.[a-z]+\.[a-z]+$/i,
+    /prototype\./i,
+    /^this\./i,
+    /^Object\./i,
+    /^Array\./i,
+    /^window\./i,
+    /^document\./i,
+    /^navigator\./i,
+    /addEventListener$/,
+    /removeEventListener$/,
+    /hasOwnProperty$/,
+    /preventDefault$/,
+    /stopPropagation$/,
+    /_context\./,
+    /_wrapperState\./,
+    /\.current\./,
+    /\.stateNode\./,
+    /\.memoizedState/,
+    /\.memoizedProps/,
+    /\.pendingProps/,
+    /\.updateQueue/
+];
+
+// Known false positive patterns
+const KNOWN_FALSE_POSITIVE_PATTERNS = [
+    // Webpack/build tool artifacts
+    /^[a-f0-9]{40}$/i, // Git commit hashes, webpack chunk hashes
+    /^[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+$/, // PascalCase identifiers
+    /^[a-z][a-zA-Z0-9]+(?:[A-Z][a-z0-9]+)+$/, // camelCase identifiers
+    // Common library patterns
+    /^(?:map|filter|reduce|forEach|slice|splice|concat)/i,
+    // React/framework internals
+    /^_react|_emotion|_styled|_next/i,
+    // Source map references
+    /sourceMappingURL/i,
+    // Build system patterns
+    /^__webpack/i,
+    /^module\./i,
+    /^exports\./i,
+];
+
+// Enhanced context patterns to skip
+const FALSE_POSITIVE_CONTEXT_PATTERNS = [
+    /base64,/i,
+    /data:image/i,
+    /;base64/i,
+    /"(?:publicKey|privateKey|data|content|image|icon|font|logo|avatar|thumbnail|media|src|href)":/i,
+    /iVBOR|AAAA|\/png|\/jpeg|\/jpg|\/gif|\/webp|\/svg/i,
+    /sourceMappingURL=/i,
+    /webpack:\/\//i,
+    /__webpack/i,
+    /\.chunk\.js/i,
+    /\/\*#\s*source/i,
+    // Asset imports
+    /import\s+.*\s+from\s+['"]/i,
+    /require\s*\(['"]/i,
+    // Common base64 data patterns
+    /["']data["']\s*:/i,
+    /["']image["']\s*:/i,
+    /\/\/ data:image/i,
+];
+
 // Calculate Shannon Entropy
 function getEntropy(str) {
     const len = str.length;
@@ -79,6 +143,31 @@ function looksLikeBinaryBase64(str) {
     return false;
 }
 
+// Enhanced base64 data detection
+function isLikelyBase64Data(str, context) {
+    // Check for data URI schemes
+    if (/data:[\w/-]+;base64,/.test(context)) return true;
+
+    // Check for common base64 padding patterns
+    if (/={1,2}$/.test(str) && str.length > 100) return true;
+
+    // Very long strings with base64 chars are likely encoded data
+    if (str.length > 200 && /^[A-Za-z0-9+/=]+$/.test(str)) return true;
+
+    // Check if surrounded by quotes and part of a data property
+    const beforeContext = context.substring(0, 100);
+    if (/"(?:data|content|image|icon|font|media|src|href|asset|resource)"\s*:\s*"[^"]*$/i.test(beforeContext)) {
+        return true;
+    }
+
+    // Check if it's in a string literal assignment to a data-related variable
+    if (/(?:const|let|var)\s+(?:data|image|icon|font|asset|resource|content)\w*\s*=\s*["`'][^"`']*$/i.test(beforeContext)) {
+        return true;
+    }
+
+    return false;
+}
+
 // Check if string is a SHA-1 hash (40 hex characters)
 function isSHA1Hash(str) {
     return /^[a-f0-9]{40}$/i.test(str);
@@ -105,64 +194,100 @@ function isCamelOrPascalCase(str) {
         /^[A-Z][a-z]+[A-Z][a-zA-Z0-9]*$/.test(str); // PascalCase
 }
 
-// Common JavaScript method patterns to exclude
-const JS_METHOD_PATTERNS = [
-    /^[a-z]+\.[a-z]+\.[a-z]+$/i,
-    /prototype\./i,
-    /^this\./i,
-    /^Object\./i,
-    /^Array\./i,
-    /^window\./i,
-    /^document\./i,
-    /^navigator\./i,
-    /addEventListener$/,
-    /removeEventListener$/,
-    /hasOwnProperty$/,
-    /preventDefault$/,
-    /stopPropagation$/,
-    /_context\./,
-    /_wrapperState\./,
-    /\.current\./,
-    /\.stateNode\./,
-    /\.memoizedState/,
-    /\.memoizedProps/,
-    /\.pendingProps/,
-    /\.updateQueue/
-];
+// Check if file appears to be minified
+function isMinifiedFile(content) {
+    if (content.length < 1000) return false;
+
+    const lines = content.split('\n');
+    const avgLineLength = content.length / lines.length;
+
+    // Minified files have very long average line length
+    if (avgLineLength > 500) return true;
+
+    // Check for webpack bundle indicators
+    if (/webpackJsonp|__webpack_require__|\/\*\*\*\*\*\*\//.test(content.substring(0, 1000))) {
+        return true;
+    }
+
+    return false;
+}
+
+// Check if line is in a comment
+function isInComment(line) {
+    const trimmed = line.trim();
+    return /^\s*\/\//.test(trimmed) || /^\s*\*/.test(trimmed) || /^\s*\/\*/.test(trimmed);
+}
 
 // Calculate confidence score (0-100)
-function calculateConfidence(type, match, entropy) {
+function calculateConfidence(type, match, entropy, context) {
     let score = 50; // Base score
 
     // Entropy check
     if (entropy > 4.5) score += 20;
     else if (entropy > 3.5) score += 10;
-    else score -= 10;
+    else score -= 15;
 
     // Type specific checks
     if (type === 'google_api') {
         if (match.startsWith('AIza')) score += 30;
     } else if (type === 'amazon_secret_key') {
         if (match.length === 40) score += 10;
-        if (/[+/]/.test(match)) score += 10; // Real keys often have these
+        // Real keys have balanced distribution
+        const hasPlus = /\+/.test(match);
+        const hasSlash = /\//.test(match);
+        if (hasPlus || hasSlash) score += 5;
     } else if (type === 'json_web_token') {
         if (match.startsWith('ey')) score += 20;
-        if (match.split('.').length === 3) score += 20;
+        const parts = match.split('.');
+        if (parts.length === 3) score += 20;
+        if (parts.every(p => p.length > 10)) score += 10;
     } else if (type === 'bitcoin_address') {
         if (match.startsWith('1') || match.startsWith('3')) score += 20;
+        if (isValidBase58(match)) score += 10;
     } else if (type.includes('authorization')) {
-        score += 10;
+        score += 15;
+    } else if (type.includes('stripe') || type.includes('twilio')) {
+        score += 15;
     }
 
     // Length checks
-    if (match.length > 20) score += 10;
+    if (match.length > 30) score += 10;
+    else if (match.length < 20) score -= 10;
+
+    // Context penalties
+    if (/test|example|sample|demo|placeholder|dummy/i.test(context)) {
+        score -= 20;
+    }
+
+    // Check if surrounded by suspicious patterns
+    if (/["'](?:key|secret|token|password|auth)["']\s*:\s*["'][^"']*$/i.test(context.substring(0, 50))) {
+        score += 15;
+    }
 
     return Math.min(100, Math.max(0, score));
+}
+
+// Deduplicate results
+function deduplicateResults(results) {
+    const seen = new Set();
+    return results.filter(result => {
+        // Create a key based on type and match
+        const key = `${result.type}:${result.match}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 }
 
 export function scanContent(content, url) {
     const results = [];
     if (!content) return results;
+
+    // Skip minified files
+    if (isMinifiedFile(content)) {
+        console.log(`Skipping minified file: ${url}`);
+        return results;
+    }
 
     for (const [name, pattern] of Object.entries(SECRET_REGEXES)) {
         try {
@@ -171,15 +296,44 @@ export function scanContent(content, url) {
             while ((match = regex.exec(content)) !== null) {
                 const matchedStr = match[0];
 
+                // Check against known false positive patterns first
+                let isFalsePositive = false;
+                for (const fpPattern of KNOWN_FALSE_POSITIVE_PATTERNS) {
+                    if (fpPattern.test(matchedStr)) {
+                        isFalsePositive = true;
+                        break;
+                    }
+                }
+                if (isFalsePositive) continue;
+
                 // Check if this match is part of base64 data by looking at context
-                const contextStart = Math.max(0, match.index - 50);
-                const contextEnd = Math.min(content.length, match.index + matchedStr.length + 50);
+                const contextStart = Math.max(0, match.index - 100);
+                const contextEnd = Math.min(content.length, match.index + matchedStr.length + 100);
                 const context = content.substring(contextStart, contextEnd);
 
                 // Skip if surrounded by base64 indicators
-                if (/base64,|data:image|;base64|"publicKey"|"data":|iVBOR|AAAA|\/png|\/jpeg|\/jpg/i.test(context)) {
-                    continue;
+                let skipDueToContext = false;
+                for (const contextPattern of FALSE_POSITIVE_CONTEXT_PATTERNS) {
+                    if (contextPattern.test(context)) {
+                        skipDueToContext = true;
+                        break;
+                    }
                 }
+                if (skipDueToContext) continue;
+
+                // Check if it's likely base64 data
+                if (isLikelyBase64Data(matchedStr, context)) continue;
+
+                // Get the line for additional context
+                const lineStart = content.lastIndexOf('\n', match.index) + 1;
+                const lineEnd = content.indexOf('\n', match.index);
+                const line = content.substring(lineStart, lineEnd === -1 ? content.length : lineEnd);
+
+                // Skip if it's in a comment
+                if (isInComment(line)) continue;
+
+                // Skip if it's part of a URL or source map
+                if (/https?:\/\//.test(line) || /sourceMappingURL/.test(line)) continue;
 
                 // Enhanced JWT filtering
                 if (name === 'json_web_token') {
@@ -217,10 +371,8 @@ export function scanContent(content, url) {
                     if (/([a-zA-Z0-9])\1{3,}/.test(matchedStr)) continue;
 
                     // Check if it looks like it's part of base64 by checking for mixed case patterns
-                    // Real Bitcoin addresses are Base58, base64 image data has different patterns
                     const hasLowerUpper = /[a-z]/.test(matchedStr) && /[A-Z]/.test(matchedStr);
                     const hasDigits = /\d/.test(matchedStr);
-                    // If it has all three but looks too random, might be base64 fragment
                     if (hasLowerUpper && hasDigits && getEntropy(matchedStr) > 4.5) continue;
                 }
 
@@ -238,19 +390,24 @@ export function scanContent(content, url) {
                     // 4. Check if it looks like binary base64 data
                     if (looksLikeBinaryBase64(matchedStr)) continue;
 
-                    // 5. Real AWS secret keys are base64 but NOT typical image/binary base64
-                    // They should be alphanumeric with occasional +/ but not excessive
-                    const upperCount = (matchedStr.match(/[A-Z]/g) || []).length;
-                    const lowerCount = (matchedStr.match(/[a-z]/g) || []).length;
-                    const digitCount = (matchedStr.match(/\d/g) || []).length;
+                    // 5. Real AWS secret keys should have balanced character distribution
+                    const charTypes = {
+                        upper: (matchedStr.match(/[A-Z]/g) || []).length,
+                        lower: (matchedStr.match(/[a-z]/g) || []).length,
+                        digit: (matchedStr.match(/\d/g) || []).length,
+                        special: (matchedStr.match(/[+/]/g) || []).length,
+                    };
 
-                    // If it's mostly one type, likely not a real key
-                    if (upperCount > 30 || lowerCount > 30 || digitCount > 30) continue;
+                    // Should have at least 3 character types
+                    const typesPresent = Object.values(charTypes).filter(count => count > 0).length;
+                    if (typesPresent < 3) continue;
 
-                    // 6. AWS keys should have balanced character distribution
-                    // Too many special chars suggests encoded binary
-                    const specialChars = (matchedStr.match(/[+/]/g) || []).length;
-                    const specialRatio = specialChars / matchedStr.length;
+                    // No single type should dominate too much (>80%)
+                    const maxType = Math.max(...Object.values(charTypes));
+                    if (maxType > 32) continue;
+
+                    // 6. Too many special chars suggests encoded binary
+                    const specialRatio = charTypes.special / matchedStr.length;
                     if (specialRatio > 0.15) continue;
 
                     // 7. Check for patterns typical in minified JS or encoded data
@@ -260,12 +417,14 @@ export function scanContent(content, url) {
                     // 8. Should have reasonable entropy but not too high (binary data)
                     const entropy = getEntropy(matchedStr);
                     if (entropy < 3.5 || entropy > 5.0) continue;
+
+                    // 9. Check if it's a webpack hash or similar (pure hex)
+                    if (/^[a-f0-9]+$/i.test(matchedStr)) continue;
                 }
 
                 // Enhanced GitHub Auth Token filtering (also 40 chars like SHA-1)
                 if (name === 'github_auth_token') {
                     // GitHub tokens are hex, but so are SHA-1 hashes
-                    // Real GitHub tokens are less common in frontend JS
                     // If it's a pure hex string, it's likely a hash
                     if (isSHA1Hash(matchedStr)) continue;
                 }
@@ -281,14 +440,18 @@ export function scanContent(content, url) {
                 }
 
                 const entropy = getEntropy(matchedStr);
-                const confidence = calculateConfidence(name, matchedStr, entropy);
+                const confidence = calculateConfidence(name, matchedStr, entropy, context);
+
+                // Only include high-confidence results
+                if (confidence < 60) continue;
 
                 results.push({
                     file: url,
                     type: name,
                     match: matchedStr,
                     index: match.index,
-                    confidence: confidence
+                    confidence: confidence,
+                    entropy: entropy.toFixed(2)
                 });
             }
         } catch (e) {
@@ -304,7 +467,7 @@ export async function scanForSecrets(requests, onProgress) {
     const total = requests.length;
 
     for (const req of requests) {
-        // Only process JavaScript files for now
+        // Only process JavaScript files
         const url = req.request.url.toLowerCase();
         const mime = req.response.content.mimeType.toLowerCase();
         if (url.endsWith('.js') || mime.includes('javascript') || mime.includes('ecmascript')) {
@@ -327,5 +490,7 @@ export async function scanForSecrets(requests, onProgress) {
         processed++;
         if (onProgress) onProgress(processed, total);
     }
-    return results;
+
+    // Deduplicate before returning
+    return deduplicateResults(results);
 }

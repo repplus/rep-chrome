@@ -1,6 +1,6 @@
 // UI Logic
 import { state, addToHistory, clearRequests, isOutOfScope } from './state.js';
-import { formatTime, formatBytes, highlightHTTP, escapeHtml, testRegex, decodeJWT, copyToClipboard } from './utils.js';
+import { formatTime, formatBytes, highlightHTTP, escapeHtml, testRegex, decodeJWT, copyToClipboard, getHostname } from './utils.js';
 
 // DOM Elements (initialized in initUI)
 export const elements = {};
@@ -32,10 +32,161 @@ export function initUI() {
     elements.oosToggle = document.getElementById('oos-toggle');
     elements.requestStats = document.getElementById('request-stats');
     elements.requestListHeader = document.querySelector('.request-list-header');
+    elements.toggleGroupsBtn = document.getElementById('toggle-groups-btn');
+}
+
+export function toggleAllGroups() {
+    const pageGroups = elements.requestList.querySelectorAll('.page-group');
+    const domainGroups = elements.requestList.querySelectorAll('.domain-group');
+    const allGroups = [...pageGroups, ...domainGroups];
+
+    const anyExpanded = allGroups.some(g => g.classList.contains('expanded'));
+    const shouldExpand = !anyExpanded;
+
+    allGroups.forEach(group => {
+        if (shouldExpand) {
+            group.classList.add('expanded');
+            group.querySelector('.group-toggle').textContent = '▼';
+        } else {
+            group.classList.remove('expanded');
+            group.querySelector('.group-toggle').textContent = '▶';
+        }
+    });
+}
+
+function toggleGroupStar(type, hostname, btn) {
+    const isPage = type === 'page';
+    const set = isPage ? state.starredPages : state.starredDomains;
+    const currentlyStarred = set.has(hostname);
+
+    if (currentlyStarred) {
+        set.delete(hostname);
+        btn.classList.remove('active');
+        btn.innerHTML = STAR_ICON_OUTLINE;
+        btn.title = 'Star Group';
+    } else {
+        set.add(hostname);
+        btn.classList.add('active');
+        btn.innerHTML = STAR_ICON_FILLED;
+        btn.title = 'Unstar Group';
+    }
+
+    const newStatus = !currentlyStarred;
+
+    // Update all requests in this group
+    state.requests.forEach((req, index) => {
+        const reqPageHostname = getHostname(req.pageUrl || req.request.url);
+        const reqHostname = getHostname(req.request.url);
+
+        let shouldUpdate = false;
+        if (isPage) {
+            // Only update if it belongs to the page AND is first-party (same hostname)
+            if (reqPageHostname === hostname && reqHostname === hostname) shouldUpdate = true;
+        } else {
+            if (reqHostname === hostname) shouldUpdate = true;
+        }
+
+        if (shouldUpdate) {
+            if (req.starred !== newStatus) {
+                req.starred = newStatus;
+                // Update UI
+                const item = elements.requestList.querySelector(`.request-item[data-index="${index}"]`);
+                if (item) {
+                    const itemStarBtn = item.querySelector('.star-btn');
+                    if (itemStarBtn) {
+                        itemStarBtn.classList.toggle('active', newStatus);
+                        itemStarBtn.innerHTML = newStatus ? STAR_ICON_FILLED : STAR_ICON_OUTLINE;
+                        itemStarBtn.title = newStatus ? 'Unstar' : 'Star request';
+                    }
+                    item.classList.toggle('starred', newStatus);
+                }
+            }
+        }
+    });
+
+    filterRequests();
 }
 
 const STAR_ICON_FILLED = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>';
 const STAR_ICON_OUTLINE = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.63-7.03L22 9.24zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.01 4.38.38-3.32 2.88 1 4.28L12 15.4z"/></svg>';
+
+function createPageGroup(pageUrl) {
+    const pageHostname = getHostname(pageUrl);
+    const group = document.createElement('div');
+    group.className = 'page-group';
+    group.id = `page-${pageHostname.replace(/[^a-zA-Z0-9-]/g, '-')}`;
+    group.dataset.pageUrl = pageUrl;
+
+    const header = document.createElement('div');
+    header.className = 'page-header';
+    header.innerHTML = `
+        <span class="group-toggle">▶</span>
+        <span class="page-icon">📄</span>
+        <span class="page-name">${escapeHtml(pageHostname)}</span>
+        <span class="page-count">(0)</span>
+        <button class="group-star-btn ${state.starredPages.has(pageHostname) ? 'active' : ''}" title="${state.starredPages.has(pageHostname) ? 'Unstar Group' : 'Star Group'}">
+            ${state.starredPages.has(pageHostname) ? STAR_ICON_FILLED : STAR_ICON_OUTLINE}
+        </button>
+    `;
+
+    const content = document.createElement('div');
+    content.className = 'page-content';
+
+    header.addEventListener('click', () => {
+        group.classList.toggle('expanded');
+        const toggle = header.querySelector('.group-toggle');
+        toggle.textContent = group.classList.contains('expanded') ? '▼' : '▶';
+    });
+
+    const starBtn = header.querySelector('.group-star-btn');
+    starBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleGroupStar('page', pageHostname, starBtn);
+    });
+
+    group.appendChild(header);
+    group.appendChild(content);
+
+    return group;
+}
+
+function createDomainGroup(hostname, isThirdParty = false) {
+    const group = document.createElement('div');
+    group.className = `domain-group${isThirdParty ? ' third-party' : ''}`;
+    group.id = `domain-${hostname.replace(/[^a-zA-Z0-9-]/g, '-')}`;
+
+    const header = document.createElement('div');
+    header.className = 'domain-header';
+    header.innerHTML = `
+        <span class="group-toggle">▶</span>
+        <span class="domain-icon">🌐</span>
+        <span class="domain-name">${escapeHtml(hostname)}</span>
+        <span class="domain-count">(0)</span>
+        <button class="group-star-btn ${state.starredDomains.has(hostname) ? 'active' : ''}" title="${state.starredDomains.has(hostname) ? 'Unstar Group' : 'Star Group'}">
+            ${state.starredDomains.has(hostname) ? STAR_ICON_FILLED : STAR_ICON_OUTLINE}
+        </button>
+    `;
+
+    const content = document.createElement('div');
+    content.className = 'domain-content';
+
+    header.addEventListener('click', () => {
+        group.classList.toggle('expanded');
+        const toggle = header.querySelector('.group-toggle');
+        toggle.textContent = group.classList.contains('expanded') ? '▼' : '▶';
+    });
+
+    const starBtn = header.querySelector('.group-star-btn');
+    starBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleGroupStar('domain', hostname, starBtn);
+    });
+
+    group.appendChild(header);
+    group.appendChild(content);
+
+    return group;
+}
 
 export function renderRequestItem(request, index) {
     const item = document.createElement('div');
@@ -97,6 +248,16 @@ export function renderRequestItem(request, index) {
         toggleStar(request);
     };
 
+    const numberSpan = document.createElement('span');
+    numberSpan.className = 'req-number';
+    numberSpan.textContent = `#${index + 1}`;
+    numberSpan.style.marginRight = '8px';
+    numberSpan.style.color = 'var(--text-secondary)';
+    numberSpan.style.fontSize = '11px';
+    numberSpan.style.minWidth = '30px';
+    numberSpan.style.display = 'inline-block';
+    numberSpan.style.textAlign = 'right';
+
     actionsDiv.appendChild(starBtn);
 
     item.appendChild(numSpan);
@@ -111,7 +272,58 @@ export function renderRequestItem(request, index) {
     const emptyState = elements.requestList.querySelector('.empty-state');
     if (emptyState) emptyState.remove();
 
-    elements.requestList.appendChild(item);
+    // Hierarchical Grouping Logic
+    const pageUrl = request.pageUrl || request.request.url;
+    const pageHostname = getHostname(pageUrl);
+    const requestHostname = getHostname(request.request.url);
+
+    // Find or create page group
+    const pageGroupId = `page-${pageHostname.replace(/[^a-zA-Z0-9-]/g, '-')}`;
+    let pageGroup = document.getElementById(pageGroupId);
+
+    if (!pageGroup) {
+        pageGroup = createPageGroup(pageUrl);
+        elements.requestList.appendChild(pageGroup);
+    }
+
+    const pageContent = pageGroup.querySelector('.page-content');
+
+    // Check if this is a third-party request (different domain from page)
+    const isThirdParty = requestHostname !== pageHostname;
+
+    if (isThirdParty) {
+        // Find or create domain subgroup within page group
+        const domainGroupId = `domain-${requestHostname.replace(/[^a-zA-Z0-9-]/g, '-')}`;
+        let domainGroup = pageGroup.querySelector(`#${domainGroupId}`);
+
+        if (!domainGroup) {
+            domainGroup = createDomainGroup(requestHostname, true);
+            // Append third-party groups at the end (after first-party requests)
+            pageContent.appendChild(domainGroup);
+        }
+
+        const domainContent = domainGroup.querySelector('.domain-content');
+        domainContent.appendChild(item);
+
+        // Update domain count
+        const domainCountSpan = domainGroup.querySelector('.domain-count');
+        const domainCount = parseInt(domainCountSpan.textContent.replace(/[()]/g, '')) || 0;
+        domainCountSpan.textContent = `(${domainCount + 1})`;
+    } else {
+        // First-party request - insert before any domain groups (keep at top)
+        const firstDomainGroup = pageContent.querySelector('.domain-group');
+        if (firstDomainGroup) {
+            pageContent.insertBefore(item, firstDomainGroup);
+        } else {
+            pageContent.appendChild(item);
+        }
+    }
+
+    // Update page count
+    const pageCountSpan = pageGroup.querySelector('.page-count');
+    const pageCount = parseInt(pageCountSpan.textContent.replace(/[()]/g, '')) || 0;
+    pageCountSpan.textContent = `(${pageCount + 1})`;
+
     filterRequests();
 }
 
@@ -228,6 +440,10 @@ export function filterRequests() {
         const isOOS = request.isOOS;
         if (isOOS) oosCount++;
 
+        // Extract hostname for domain-based search
+        const hostname = getHostname(url);
+        const hostnameLower = hostname.toLowerCase();
+
         // Build searchable text from headers
         let headersText = '';
         let headersTextLower = '';
@@ -257,6 +473,7 @@ export function filterRequests() {
                 matchesSearch =
                     regex.test(url) ||
                     regex.test(method) ||
+                    regex.test(hostname) ||
                     regex.test(headersText) ||
                     regex.test(bodyText);
             } catch (e) {
@@ -269,6 +486,7 @@ export function filterRequests() {
             matchesSearch =
                 urlLower.includes(state.currentSearchTerm) ||
                 method.includes(state.currentSearchTerm.toUpperCase()) ||
+                hostnameLower.includes(state.currentSearchTerm) ||
                 headersTextLower.includes(state.currentSearchTerm) ||
                 bodyTextLower.includes(state.currentSearchTerm);
         }
@@ -304,6 +522,22 @@ export function filterRequests() {
 
     // Update OOS stats
     updateOOSStats(visibleCount, oosCount);
+
+    // Update domain groups visibility (third-party domains)
+    const domainGroups = elements.requestList.querySelectorAll('.domain-group');
+    domainGroups.forEach(group => {
+        const hasVisibleItems = Array.from(group.querySelectorAll('.request-item')).some(item => item.style.display !== 'none');
+        group.style.display = hasVisibleItems ? 'block' : 'none';
+    });
+
+    // Update page groups visibility
+    const pageGroups = elements.requestList.querySelectorAll('.page-group');
+    pageGroups.forEach(group => {
+        const pageContent = group.querySelector('.page-content');
+        const hasVisibleRequests = Array.from(pageContent.querySelectorAll(':scope > .request-item')).some(item => item.style.display !== 'none');
+        const hasVisibleDomains = Array.from(pageContent.querySelectorAll('.domain-group')).some(domain => domain.style.display !== 'none');
+        group.style.display = (hasVisibleRequests || hasVisibleDomains) ? 'block' : 'none';
+    });
 
     // Show error state if regex is invalid
     if (regexError && state.useRegex && state.currentSearchTerm) {
@@ -890,6 +1124,7 @@ export function importRequests(file) {
     };
     reader.readAsText(file);
 }
+<<<<<<< HEAD
 
 /**
  * Update OOS statistics display
@@ -1013,3 +1248,5 @@ export function initOOSToggle() {
         elements.oosToggle.addEventListener('click', toggleOOSVisibility);
     }
 }
+=======
+>>>>>>> upstream/main

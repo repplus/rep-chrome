@@ -2,6 +2,19 @@
 import { settings } from './settings.js';
 
 export function setupNetworkListener(onRequestCaptured) {
+    // Get the current page URL once at setup
+    let currentPageUrl = '';
+    chrome.devtools.inspectedWindow.eval('window.location.href', (result, isException) => {
+        if (!isException && result) {
+            currentPageUrl = result;
+        }
+    });
+
+    // Update page URL when navigation occurs
+    chrome.devtools.network.onNavigated.addListener((url) => {
+        currentPageUrl = url;
+    });
+
     chrome.devtools.network.onRequestFinished.addListener((request) => {
         // Filter out data URLs or extension schemes
         if (!request.request.url.startsWith('http')) return;
@@ -27,6 +40,9 @@ export function setupNetworkListener(onRequestCaptured) {
 
         // Store the capture time for relative time display
         request.capturedAt = Date.now();
+
+        // Store the page URL that this request belongs to
+        request.pageUrl = currentPageUrl || request.request.url;
 
         onRequestCaptured(request);
     });

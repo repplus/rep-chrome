@@ -2524,3 +2524,145 @@ pre {
         width: 100%;
     }
 }
+
+/* Page Grouping (Top Level) */
+.page-group {
+    border-bottom: 2px solid var(--border-color);
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 8px;
+    background: var(--sidebar-bg);
+    cursor: pointer;
+    user-select: none;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.page-header:hover {
+    background: var(--hover-bg);
+}
+
+.page-icon {
+    margin-right: 6px;
+    font-size: 16px;
+}
+
+.page-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.page-count {
+    font-size: 11px;
+    color: #9aa0a6;
+    margin-left: 6px;
+}
+
+.page-content {
+    display: none;
+}
+
+.page-group.expanded .page-content {
+    display: block;
+}
+
+/* Domain Grouping (Nested under pages) */
+.domain-group {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.domain-group.third-party {
+    margin-left: 0;
+}
+
+.domain-header {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px 6px 20px;
+    background: var(--sidebar-bg);
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.domain-header:hover {
+    background: var(--hover-bg);
+}
+
+.group-toggle {
+    margin-right: 6px;
+    font-size: 10px;
+    color: #9aa0a6;
+    width: 12px;
+    text-align: center;
+}
+
+.domain-icon {
+    margin-right: 6px;
+    font-size: 14px;
+}
+
+.domain-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.domain-count {
+    font-size: 11px;
+    color: #9aa0a6;
+    margin-left: 6px;
+}
+
+.domain-content {
+    display: none;
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.domain-group.expanded .domain-content {
+    display: block;
+}
+
+.domain-content .request-item {
+    padding-left: 44px;
+}
+
+/* First-party requests directly under page */
+.page-content>.request-item {
+    padding-left: 24px;
+}
+
+/* Group Star Button */
+.group-star-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 2px;
+    margin-left: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.5;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.group-star-btn:hover {
+    opacity: 1;
+    color: var(--accent-color);
+}
+
+.group-star-btn.active {
+    opacity: 1;
+    color: #f4b400;
+
+}
