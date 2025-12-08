@@ -2,6 +2,7 @@
 import { state, addToHistory } from '../core/state.js';
 import { highlightHTTP } from '../core/utils/network.js';
 import { generateHexView } from './hex-view.js';
+import { generateJsonView } from './json-view.js';
 import { events, EVENT_NAMES } from '../core/events.js';
 import { getStatusClass, formatRawResponse } from '../network/response-parser.js';
 
@@ -178,7 +179,7 @@ export function switchResponseView(view) {
     });
 
     // Update Content Visibility
-    ['pretty', 'raw', 'hex', 'render'].forEach(v => {
+    ['pretty', 'raw', 'hex', 'render', 'json'].forEach(v => {
         const el = document.getElementById(`res-view-${v}`);
         if (el) {
             el.style.display = v === view ? 'flex' : 'none';
@@ -196,6 +197,12 @@ export function switchResponseView(view) {
     } else if (view === 'hex') {
         const hexDisplay = document.getElementById('res-hex-display');
         if (hexDisplay) hexDisplay.textContent = generateHexView(content);
+    } else if (view === 'json') {
+        const jsonDisplay = document.getElementById('res-json-display');
+        if (jsonDisplay) {
+            jsonDisplay.innerHTML = '';
+            jsonDisplay.appendChild(generateJsonView(content));
+        }
     }
 }
 
