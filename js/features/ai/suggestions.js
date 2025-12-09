@@ -16,7 +16,8 @@ export async function handleAttackSurfaceAnalysis(
     explanationModal,
     explanationContent,
     settingsModal,
-    handleSendRequest
+    handleSendRequest,
+    onTextUpdate
 ) {
     const { provider, apiKey, model } = getAISettings();
     if (!apiKey) {
@@ -105,6 +106,7 @@ Output must stay concise, structured, and actionable. Format as clear Markdown.`
             "You are an AI security assistant inside a web security testing tool. Your job is to analyze HTTP requests and responses to identify realistic attack vectors and generate payloads. Be precise and base everything strictly on what you see.",
             analysisPrompt,
             (text) => {
+                if (onTextUpdate) onTextUpdate(text);
                 if (typeof marked !== 'undefined') {
                     explanationContent.innerHTML = marked.parse(text);
                 } else {

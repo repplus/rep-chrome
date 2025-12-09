@@ -1575,6 +1575,27 @@ pre {
     color: var(--accent-color);
 }
 
+/* AI export dropdown */
+#ai-export-menu .menu-item {
+    padding: 8px 12px;
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-color);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+#ai-export-menu .menu-item:hover {
+    background-color: var(--hover-bg);
+    color: var(--accent-color);
+    transform: translateX(2px);
+}
+
 .context-menu-item.has-submenu:hover .context-submenu {
     display: block;
 }

@@ -502,6 +502,16 @@
         <div class="modal-content" style="min-width: 600px; width: 60%;">
             <div class="modal-header">
                 <h3>Request Explanation</h3>
+                <div style="position: relative; display: flex; align-items: center; margin-left: auto;">
+                    <button id="ai-export-toggle" class="secondary-btn" title="Export AI output" style="display: flex; align-items: center; gap: 6px;">
+                        <span>📤 Export</span>
+                        <span style="font-size: 11px;">▼</span>
+                    </button>
+                    <div id="ai-export-menu" style="display: none; position: absolute; top: 32px; right: 0; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); min-width: 170px; z-index: 50;">
+                        <button id="ai-export-md-item" class="menu-item" style="width: 100%; text-align: left; padding: 8px 12px; background: transparent; border: none; color: var(--text-color); display: flex; gap: 8px; align-items: center;">📝 Export as Markdown</button>
+                        <button id="ai-export-pdf-item" class="menu-item" style="width: 100%; text-align: left; padding: 8px 12px; background: transparent; border: none; color: var(--text-color); display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--border-color);">🖨️ Export as PDF</button>
+                    </div>
+                </div>
                 <button class="close-modal">&times;</button>
             </div>
             <div class="modal-body">

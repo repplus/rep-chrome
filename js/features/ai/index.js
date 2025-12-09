@@ -2,6 +2,80 @@
 import { getAISettings, saveAISettings, streamExplanationWithSystem } from './core.js';
 import { handleAIExplanation } from './explain.js';
 import { handleAttackSurfaceAnalysis } from './suggestions.js';
+import { state } from '../../core/state.js';
+
+let lastAiMarkdown = '';
+let lastAiType = ''; // 'explain' or 'attack-analysis'
+
+function setLastAiText(text, type) {
+    lastAiMarkdown = text || '';
+    lastAiType = type || '';
+}
+
+function generateExportFilename(extension = 'md') {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19); // YYYY-MM-DDTHH-MM-SS
+    const type = lastAiType || 'ai-output';
+    
+    let host = 'unknown';
+    let endpoint = 'unknown';
+    
+    if (state.selectedRequest && state.selectedRequest.request) {
+        try {
+            const url = new URL(state.selectedRequest.request.url);
+            host = url.hostname.replace(/[^a-zA-Z0-9.-]/g, '_');
+            let path = url.pathname || '/';
+            // Clean up path: remove leading/trailing slashes, replace slashes with underscores, limit length
+            path = path.replace(/^\/+|\/+$/g, '').replace(/\//g, '_').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 50);
+            endpoint = path || 'root';
+        } catch (e) {
+            // If URL parsing fails, use the raw URL
+            const urlStr = state.selectedRequest.request.url || '';
+            host = urlStr.split('/')[2]?.replace(/[^a-zA-Z0-9.-]/g, '_') || 'unknown';
+            const pathParts = urlStr.split('/').slice(3).filter(p => p).join('_');
+            endpoint = pathParts.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 50) || 'root';
+        }
+    }
+    
+    return `rep-plus-${type}-${host}-${endpoint}-${timestamp}.${extension}`;
+}
+
+function downloadMarkdown(text) {
+    const filename = generateExportFilename('md');
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function downloadPdfFromHtml(htmlContent) {
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) return;
+    const exportedAt = new Date().toLocaleString();
+    const filename = generateExportFilename('pdf').replace('.pdf', '');
+    win.document.write(`
+        <html>
+        <head>
+            <title>${filename}</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+                .footer { margin-top: 24px; font-size: 12px; color: #555; border-top: 1px solid #ddd; padding-top: 8px; }
+            </style>
+        </head>
+        <body>
+            ${htmlContent}
+            <div class="footer">
+                Exported from rep+ on ${exportedAt} — https://github.com/bscript/rep
+            </div>
+        </body>
+        </html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+}
 
 // Re-export core functions for backward compatibility
 export { 
@@ -35,6 +109,10 @@ export function setupAIFeatures(elements) {
     const explanationModal = document.getElementById('explanation-modal');
     const explanationContent = document.getElementById('explanation-content');
     const ctxExplainAi = document.getElementById('ctx-explain-ai');
+    const exportToggle = document.getElementById('ai-export-toggle');
+    const exportMenu = document.getElementById('ai-export-menu');
+    const exportMdItem = document.getElementById('ai-export-md-item');
+    const exportPdfItem = document.getElementById('ai-export-pdf-item');
 
     // Handle provider switching
     if (aiProviderSelect) {
@@ -113,7 +191,8 @@ export function setupAIFeatures(elements) {
                 alert('Request is empty.');
                 return;
             }
-            handleAIExplanation("Explain this HTTP request:", content, explanationModal, explanationContent, settingsModal);
+            const setLastAiTextWithType = (text) => setLastAiText(text, 'explain');
+            handleAIExplanation("Explain this HTTP request:", content, explanationModal, explanationContent, settingsModal, setLastAiTextWithType);
         });
     }
 
@@ -130,20 +209,22 @@ export function setupAIFeatures(elements) {
             
             // Import handleSendRequest dynamically to avoid circular dependency
             let handleSendRequest = null;
-            try {
+                    try {
                 const handlerModule = await import('../../network/handler.js');
                 handleSendRequest = handlerModule.handleSendRequest;
-            } catch (error) {
+                    } catch (error) {
                 console.warn('Could not import handleSendRequest:', error);
             }
 
+            const setLastAiTextWithType = (text) => setLastAiText(text, 'attack-analysis');
             await handleAttackSurfaceAnalysis(
                 requestContent,
                 responseContent,
                 explanationModal,
                 explanationContent,
                 settingsModal,
-                handleSendRequest
+                handleSendRequest,
+                setLastAiTextWithType
             );
         });
     }
@@ -164,12 +245,49 @@ export function setupAIFeatures(elements) {
                 return;
             }
             const prompt = `Explain this specific part of an HTTP request / response: \n\n"${selectedText}"\n\nProvide context on what it is, how it's used, and any security relevance.`;
-            handleAIExplanation(prompt, "", explanationModal, explanationContent, settingsModal);
+            handleAIExplanation(prompt, "", explanationModal, explanationContent, settingsModal, setLastAiText);
             
             // Clear stored text
             if (contextMenu) {
                 delete contextMenu.dataset.selectedText;
             }
+        });
+    }
+
+    // Export controls (dropdown)
+    if (exportToggle && exportMenu) {
+        const closeMenu = () => { exportMenu.style.display = 'none'; };
+        exportToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exportMenu.style.display = exportMenu.style.display === 'block' ? 'none' : 'block';
+        });
+        document.addEventListener('click', (e) => {
+            if (!exportMenu.contains(e.target) && e.target !== exportToggle) {
+                closeMenu();
+            }
+        });
+    }
+
+    if (exportMdItem) {
+        exportMdItem.addEventListener('click', () => {
+            if (!lastAiMarkdown.trim()) {
+                alert('No AI output to export yet.');
+                return;
+            }
+            downloadMarkdown(lastAiMarkdown);
+            if (exportMenu) exportMenu.style.display = 'none';
+        });
+    }
+
+    if (exportPdfItem) {
+        exportPdfItem.addEventListener('click', () => {
+            const html = explanationContent ? explanationContent.innerHTML : '';
+            if (!html || !html.trim()) {
+                alert('No AI output to export yet.');
+                return;
+            }
+            downloadPdfFromHtml(html);
+            if (exportMenu) exportMenu.style.display = 'none';
         });
     }
 

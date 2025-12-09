@@ -81,6 +81,7 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
 - Context menu “Explain with AI” for selected text.
 - Attack Surface Analysis per domain: categorization (Auth/Payments/Admin/etc.), color-coded icons, toggle between list and attack-surface view.
 - Multi-provider support (Claude/Gemini).
+- Export AI outputs as Markdown or PDF to save RPD/TPM.
 
 ### Productivity & Theming
 - Light/dark theme with smooth transitions.

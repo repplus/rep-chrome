@@ -9,7 +9,7 @@ import { getAISettings, streamExplanation } from './core.js';
  * @param {HTMLElement} explanationContent - Content element in modal
  * @param {HTMLElement} settingsModal - Settings modal element
  */
-export async function handleAIExplanation(promptPrefix, content, explanationModal, explanationContent, settingsModal) {
+export async function handleAIExplanation(promptPrefix, content, explanationModal, explanationContent, settingsModal, onTextUpdate) {
     const { provider, apiKey, model } = getAISettings();
     if (!apiKey) {
         const providerName = provider === 'gemini' ? 'Gemini' : 'Anthropic';
@@ -29,6 +29,7 @@ export async function handleAIExplanation(promptPrefix, content, explanationModa
 
     try {
         await streamExplanation(apiKey, model, promptPrefix + "\n\n" + content, (text) => {
+            if (onTextUpdate) onTextUpdate(text);
             if (typeof marked !== 'undefined') {
                 explanationContent.innerHTML = marked.parse(text);
             } else {
