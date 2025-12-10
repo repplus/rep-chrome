@@ -34,7 +34,7 @@ export function initMultiTabCapture() {
                     const req = msg.data;
 
                     // Skip requests from the current inspected tab (handled by setupNetworkListener)
-                    if (req.tabId === chrome.devtools.inspectedWindow.tabId) return;
+                    if (chrome.devtools && chrome.devtools.inspectedWindow && req.tabId === chrome.devtools.inspectedWindow.tabId) return;
 
                     // Convert to HAR-like format
                     const harEntry = {

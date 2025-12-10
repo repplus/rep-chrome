@@ -3,11 +3,13 @@
 export function setupNetworkListener(onRequestCaptured) {
     // Get the current page URL once at setup
     let currentPageUrl = '';
-    chrome.devtools.inspectedWindow.eval('window.location.href', (result, isException) => {
-        if (!isException && result) {
-            currentPageUrl = result;
-        }
-    });
+    if (chrome.devtools && chrome.devtools.inspectedWindow) {
+        chrome.devtools.inspectedWindow.eval('window.location.href', (result, isException) => {
+            if (!isException && result) {
+                currentPageUrl = result;
+            }
+        });
+    }
 
     // Update page URL when navigation occurs
     chrome.devtools.network.onNavigated.addListener((url) => {

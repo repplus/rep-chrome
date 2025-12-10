@@ -11,9 +11,17 @@ import { getAISettings, streamExplanation } from './core.js';
  */
 export async function handleAIExplanation(promptPrefix, content, explanationModal, explanationContent, settingsModal, onTextUpdate) {
     const { provider, apiKey, model } = getAISettings();
-    if (!apiKey) {
-        const providerName = provider === 'gemini' ? 'Gemini' : 'Anthropic';
-        alert(`Please configure your ${providerName} API Key in Settings first.`);
+    if (!apiKey || (provider === 'local' && !model)) {
+        let providerName = 'Anthropic';
+        if (provider === 'gemini') {
+            providerName = 'Gemini';
+        } else if (provider === 'local') {
+            providerName = 'Local Model';
+        }
+        const message = provider === 'local' 
+            ? 'Please configure your Local Model URL and Model Name in Settings first.'
+            : `Please configure your ${providerName} API Key in Settings first.`;
+        alert(message);
         settingsModal.style.display = 'block';
         return;
     }

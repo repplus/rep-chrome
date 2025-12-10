@@ -86,7 +86,9 @@ export {
     streamExplanationFromClaude,
     streamExplanationFromClaudeWithSystem,
     streamExplanationFromGemini,
-    streamExplanationFromGeminiWithSystem
+    streamExplanationFromGeminiWithSystem,
+    streamExplanationFromLocal,
+    streamExplanationFromLocalWithSystem
 } from './core.js';
 export { handleAIExplanation } from './explain.js';
 export { handleAttackSurfaceAnalysis } from './suggestions.js';
@@ -102,6 +104,9 @@ export function setupAIFeatures(elements) {
     const geminiModelSelect = document.getElementById('gemini-model');
     const anthropicSettings = document.getElementById('anthropic-settings');
     const geminiSettings = document.getElementById('gemini-settings');
+    const localSettings = document.getElementById('local-settings');
+    const localApiUrlInput = document.getElementById('local-api-url');
+    const localModelInput = document.getElementById('local-model');
     const aiMenuBtn = document.getElementById('ai-menu-btn');
     const aiMenuDropdown = document.getElementById('ai-menu-dropdown');
     const explainBtn = document.getElementById('explain-btn');
@@ -118,12 +123,16 @@ export function setupAIFeatures(elements) {
     if (aiProviderSelect) {
         aiProviderSelect.addEventListener('change', () => {
             const provider = aiProviderSelect.value;
+            anthropicSettings.style.display = 'none';
+            geminiSettings.style.display = 'none';
+            localSettings.style.display = 'none';
+            
             if (provider === 'gemini') {
-                anthropicSettings.style.display = 'none';
                 geminiSettings.style.display = 'block';
+            } else if (provider === 'local') {
+                localSettings.style.display = 'block';
             } else {
                 anthropicSettings.style.display = 'block';
-                geminiSettings.style.display = 'none';
             }
         });
     }
@@ -134,16 +143,22 @@ export function setupAIFeatures(elements) {
 
             if (aiProviderSelect) aiProviderSelect.value = provider;
 
+            anthropicSettings.style.display = 'none';
+            geminiSettings.style.display = 'none';
+            localSettings.style.display = 'none';
+
             if (provider === 'gemini') {
                 geminiApiKeyInput.value = apiKey;
                 if (geminiModelSelect) geminiModelSelect.value = model;
-                anthropicSettings.style.display = 'none';
                 geminiSettings.style.display = 'block';
+            } else if (provider === 'local') {
+                if (localApiUrlInput) localApiUrlInput.value = apiKey; // apiKey is actually the URL for local
+                if (localModelInput) localModelInput.value = model;
+                localSettings.style.display = 'block';
             } else {
                 anthropicApiKeyInput.value = apiKey;
                 if (anthropicModelSelect) anthropicModelSelect.value = model;
                 anthropicSettings.style.display = 'block';
-                geminiSettings.style.display = 'none';
             }
 
             settingsModal.style.display = 'block';
@@ -158,17 +173,23 @@ export function setupAIFeatures(elements) {
             if (provider === 'gemini') {
                 key = geminiApiKeyInput.value.trim();
                 model = geminiModelSelect ? geminiModelSelect.value : 'gemini-flash-latest';
+            } else if (provider === 'local') {
+                key = localApiUrlInput ? localApiUrlInput.value.trim() : 'http://localhost:11434/api/generate';
+                model = localModelInput ? localModelInput.value.trim() : '';
             } else {
                 key = anthropicApiKeyInput.value.trim();
                 model = anthropicModelSelect ? anthropicModelSelect.value : 'claude-3-5-sonnet-20241022';
             }
 
-            if (key) {
+            if (key && (provider !== 'local' || model)) {
                 saveAISettings(provider, key, model);
+                alert('Settings saved!');
+                settingsModal.style.display = 'none';
+            } else if (provider === 'local' && !model) {
+                alert('Please enter a model name for the local provider.');
+            } else {
+                alert('Please enter required settings.');
             }
-
-            alert('Settings saved!');
-            settingsModal.style.display = 'none';
         });
     }
 

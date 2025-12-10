@@ -457,6 +457,7 @@
                     <select id="ai-provider" class="form-control">
                         <option value="anthropic">Anthropic (Claude)</option>
                         <option value="gemini">Google Gemini</option>
+                        <option value="local">Local Model (Ollama)</option>
                     </select>
                 </div>
                 <div id="anthropic-settings" class="provider-settings">
@@ -488,6 +489,18 @@
                             <option value="gemini-2-5-pro">Gemini 2.5 Pro</option>
                             <option value="gemini-flash-latest">Gemini Flash (Latest)</option>
                         </select>
+                    </div>
+                </div>
+                <div id="local-settings" class="provider-settings" style="display: none;">
+                    <div class="form-group">
+                        <label for="local-api-url">API URL</label>
+                        <input type="text" id="local-api-url" class="form-control" placeholder="http://localhost:11434/api/generate">
+                        <p class="help-text">URL endpoint for your local model API (e.g., Ollama). Stored locally.</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="local-model">Model Name</label>
+                        <input type="text" id="local-model" class="form-control" placeholder="gemma3:4b">
+                        <p class="help-text">Name of the local model to use.</p>
                     </div>
                 </div>
             </div>

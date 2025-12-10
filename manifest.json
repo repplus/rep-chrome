@@ -3,14 +3,13 @@
     "name": "rep+",
     "version": "1.0",
     "description": "rep+ - Capture, modify, and replay HTTP requests in Chrome DevTools with AI-powered security analysis.",
-    "permissions": [
-        "activeTab",
-        "storage"
-    ],
     "optional_permissions": [
         "webRequest"
     ],
-    "host_permissions": [],
+    "host_permissions": [
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+    ],
     "optional_host_permissions": [
         "<all_urls>"
     ],

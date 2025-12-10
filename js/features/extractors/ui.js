@@ -122,7 +122,11 @@ export function initExtractorUI() {
 
                 // Get all resources
                 const resources = await new Promise((resolve) => {
-                    chrome.devtools.inspectedWindow.getResources((res) => resolve(res));
+                    if (chrome.devtools && chrome.devtools.inspectedWindow) {
+                        chrome.devtools.inspectedWindow.getResources((res) => resolve(res));
+                    } else {
+                        resolve([]);
+                    }
                 });
 
                 const jsFiles = resources.filter(r => r.type === 'script' || r.url.endsWith('.js') || r.url.endsWith('.map'));

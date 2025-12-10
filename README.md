@@ -113,6 +113,23 @@ rep+ is a lightweight Chrome DevTools extension inspired by Burp Suite's Repeate
 
 This combo makes rep+ handy for bug bounty hunters and vulnerability researchers who want Burp-like iteration without the heavyweight UI. Install the extension, open DevTools, head to the rep+ panel, and start hacking. 😎
 
+### Local Model (Ollama) Setup
+If you use a local model (e.g., Ollama) you must allow Chrome extensions to call it, otherwise you’ll see 403/CORS errors.
+
+1. Stop any running Ollama instance.
+2. Start Ollama with CORS enabled (pick one):
+   - Allow only Chrome extensions:
+     ```bash
+     OLLAMA_ORIGINS="chrome-extension://*" ollama serve
+     ```
+   - Allow everything (easier for local dev):
+     ```bash
+     OLLAMA_ORIGINS="*" ollama serve
+     ```
+3. Verify your model exists (e.g., `gemma3:4b`) with `ollama list`.
+4. Reload the extension and try again. If you still see 403, check Ollama logs for details.
+
+
 ## Permissions & Privacy
 - **Optional**: `webRequest` + `<all_urls>` only when you enable multi-tab capture.  
 - **Data**: Stored locally; no tracking/analytics.  
