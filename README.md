@@ -208,6 +208,10 @@ If **rep+ saved you time** during testing, development, or bug bounty work, plea
    <a href="https://github.com/greenat92">
     <img src="https://avatars.githubusercontent.com/u/8342706?s=60" width="60" style="border-radius:50%;" alt="Sponsor"/>
   </a>
+   &nbsp;&nbsp;
+   <a href="https://github.com/tixxdz">
+    <img src="https://avatars.githubusercontent.com/u/1549291?s=60" width="60" style="border-radius:50%;" alt="Sponsor"/>
+  </a>
 </p>
 
 <p align="center">
