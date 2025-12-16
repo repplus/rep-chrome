@@ -37,6 +37,10 @@ export function addRequest(request) {
     // Initialize defaults
     request.starred = false;
     request.color = null;
+    // Optional human-friendly name for the request (used for inline rename & search)
+    if (typeof request.name !== 'string') {
+        request.name = null;
+    }
     state.requests.push(request);
 
     return state.requests.length - 1; // Return index

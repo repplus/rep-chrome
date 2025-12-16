@@ -162,13 +162,29 @@ export function createRequestItemElement(request, index, categoryData) {
         urlSpan.appendChild(globeIcon);
     }
 
+    // Compute display label: user-defined name (if present) or path+query
+    let displayLabel = request.name && typeof request.name === 'string' && request.name.trim()
+        ? request.name.trim()
+        : null;
+
     try {
         const urlObj = new URL(request.request.url);
-        urlSpan.appendChild(document.createTextNode(urlObj.pathname + urlObj.search));
+        const pathAndQuery = urlObj.pathname + urlObj.search;
+        if (!displayLabel) {
+            displayLabel = pathAndQuery || request.request.url;
+        }
+        urlSpan.appendChild(document.createTextNode(displayLabel));
+        urlSpan.title = request.name
+            ? `${request.name} — ${request.request.url}`
+            : request.request.url;
     } catch (e) {
-        urlSpan.appendChild(document.createTextNode(request.request.url));
+        // Fallback if URL constructor fails
+        if (!displayLabel) {
+            displayLabel = request.request.url;
+        }
+        urlSpan.appendChild(document.createTextNode(displayLabel));
+        urlSpan.title = request.request.url;
     }
-    urlSpan.title = request.request.url;
 
     // Time span
     const timeSpan = document.createElement('span');
@@ -274,6 +290,74 @@ export function createRequestItemElement(request, index, categoryData) {
 
     item.addEventListener('click', () => {
         events.emit(EVENT_NAMES.REQUEST_SELECTED, index);
+    });
+
+    // Inline rename: double-click the URL/label to edit request.name
+    urlSpan.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+
+        // Prevent multiple editors
+        if (urlSpan.querySelector('input.req-name-input')) {
+            return;
+        }
+
+        const currentLabel = displayLabel || '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'req-name-input';
+        input.value = currentLabel;
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box';
+
+        // Replace text node(s) with input
+        urlSpan.innerHTML = '';
+        urlSpan.appendChild(input);
+        input.focus();
+        input.select();
+
+        const commit = () => {
+            const newName = input.value.trim();
+            // Update state
+            state.requests[index].name = newName || null;
+
+            // Re-render label
+            urlSpan.innerHTML = '';
+            const finalLabel = newName || ((() => {
+                try {
+                    const urlObj = new URL(state.requests[index].request.url);
+                    return urlObj.pathname + urlObj.search || state.requests[index].request.url;
+                } catch {
+                    return state.requests[index].request.url;
+                }
+            })());
+            urlSpan.appendChild(document.createTextNode(finalLabel));
+            urlSpan.title = newName
+                ? `${newName} — ${state.requests[index].request.url}`
+                : state.requests[index].request.url;
+        };
+
+        const cancel = () => {
+            // Restore original label without changing state
+            urlSpan.innerHTML = '';
+            urlSpan.appendChild(document.createTextNode(currentLabel));
+            urlSpan.title = state.requests[index].name
+                ? `${state.requests[index].name} — ${state.requests[index].request.url}`
+                : state.requests[index].request.url;
+        };
+
+        input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                commit();
+            } else if (ev.key === 'Escape') {
+                ev.preventDefault();
+                cancel();
+            }
+        });
+
+        input.addEventListener('blur', () => {
+            commit();
+        });
     });
 
     // Add confidence badge if category data is provided
@@ -560,6 +644,10 @@ export function filterRequests() {
             bodyTextLower = bodyText.toLowerCase();
         }
 
+        // Prepare name for search (user-defined request label)
+        const name = (request.name && typeof request.name === 'string') ? request.name : '';
+        const nameLower = name.toLowerCase();
+
         // Check search term
         let matchesSearch = false;
         if (state.currentSearchTerm === '') {
@@ -572,7 +660,8 @@ export function filterRequests() {
                     regex.test(method) ||
                     regex.test(hostname) ||
                     regex.test(headersText) ||
-                    regex.test(bodyText);
+                    regex.test(bodyText) ||
+                    regex.test(name);
             } catch (e) {
                 if (!regexError) {
                     regexError = true;
@@ -585,7 +674,8 @@ export function filterRequests() {
                 method.includes(state.currentSearchTerm.toUpperCase()) ||
                 hostnameLower.includes(state.currentSearchTerm) ||
                 headersTextLower.includes(state.currentSearchTerm) ||
-                bodyTextLower.includes(state.currentSearchTerm);
+                bodyTextLower.includes(state.currentSearchTerm) ||
+                nameLower.includes(state.currentSearchTerm);
         }
 
         // Check filter
